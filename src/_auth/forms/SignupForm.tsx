@@ -1,17 +1,28 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Link } from "react-router-dom"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, } from "@/components/ui/form"
+import { Link, useNavigate } from "react-router-dom"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { useForm } from "react-hook-form"
 import { SignUpValidation } from "@/lib/validation"
 import { z } from "zod";
 import Loader from "@/components/shared/Loader"
+import { useCreateUserAccount, useSignInAccount } from "@/lib/react-query/queriesAndMutations"
+import { useUserContext } from "@/context/AuthContext"
 
 const SignupForm = () => {
-  const isLoading = false;
+  const { toast } = useToast()
+  const { checkAuthUser, isLoading: isUserLoading } = useUserContext();
+  const navigate = useNavigate();
+
+  const {mutateAsync: createUserAccount, isPending: 
+  isCreatingAccount } = useCreateUserAccount();
+
+  const {mutateAsync: signInAccount, isPending:isSigningIn} =
+  useSignInAccount();
+
    // 1. Define your form.
    const form = useForm<z.infer<typeof SignUpValidation>>({
     resolver: zodResolver(SignUpValidation),
@@ -22,12 +33,35 @@ const SignupForm = () => {
       password: "",
     },
   })
- 
+
   // 2. Define a submit handler.
-  function onSubmit(values: z.infer<typeof SignUpValidation>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values)
+  async function onSubmit(values: z.infer<typeof SignUpValidation>) {
+    // onSubmit we want to create a user
+    const newUser = await createUserAccount(values);
+    
+    if(!newUser) {
+      return toast({
+        title: "Sign up failed. Please try again."})
+    }
+
+    const session = await signInAccount({
+      email: values.email,
+      password: values.password,
+    })
+
+    if(!session) {
+      return toast({ title:'Sign in failed. Please try again.'})
+    }
+
+    const isLoggedIn = await checkAuthUser();
+
+    if(isLoggedIn){
+      form.reset();
+
+      navigate('/')
+    }else{
+      return toast({ title: 'Sign up failed. Please try again.'})
+    }
   }
 
   return (
@@ -38,7 +72,7 @@ const SignupForm = () => {
             <h2 className="h3-bold md:h2-bold pt-5 sm:pt-12">Create a new account</h2>
             <p className="text-light-3 small-medium md:base-regular">To use Snapgram, please enter your details</p>
           
-            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full mt-4"> {/*Submits entire form*/}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full mt-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -92,7 +126,7 @@ const SignupForm = () => {
                 )}
               />
               <Button type="submit" className="shad-button_primary">
-                {isLoading ? (
+                {isCreatingAccount ? (
                   <div className="flex-center gap-2">
                     <Loader /> Loading...
                   </div>
