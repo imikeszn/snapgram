@@ -337,7 +337,7 @@ export async function updatePost(post: IUpdatePost) {
     } catch (error) {
       console.log(error);
     }
-  }
+}
 
   export async function deletePost(postId?: string, imageId?: string) {
     if (!postId || !imageId) return;
@@ -357,4 +357,22 @@ export async function updatePost(post: IUpdatePost) {
     } catch (error) {
       console.log(error);
     }
+}
+
+export async function getUserPosts(userId?: string) {
+  if (!userId) return;
+
+  try {
+    const post = await databases.listDocuments(
+      appwriteConfig.databaseId,
+      appwriteConfig.postCollectionId,
+      [Query.equal("creator", userId), Query.orderDesc("$createdAt")]
+    );
+
+    if (!post) throw Error;
+
+    return post;
+  } catch (error) {
+    console.log(error);
   }
+}
